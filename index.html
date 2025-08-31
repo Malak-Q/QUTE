@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QUTE: Quantum Understanding Through Experimentation</title>
+    <link rel="icon" href="https://i.ibb.co/YT1NVnhC/539c325e-7d56-49f7-a9c3-b977675e5b9e-removalai-preview.png" type="image/png">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter & Fredoka One -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the QUTE website */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0A0A1A; /* Dark blue-purple background */
+            color: #E0E0F0; /* Light off-white for text */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+            padding-bottom: 5rem;
+        }
+
+        /* Hero section background gradient */
+        .hero-gradient {
+            background: linear-gradient(180deg, #1A1A3A 0%, #0A0A1A 100%);
+        }
+
+        /* General element styling */
+        .card {
+            background-color: #1A1A3A;
+            border: 1px solid rgba(224, 224, 240, 0.1);
+        }
+
+        /* Quantum gate styling */
+        .gate {
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .gate:active {
+            cursor: grabbing;
+        }
+
+        /* Quantum circuit plane */
+        #circuit-grid {
+            position: relative;
+            background: rgba(26, 26, 58, 0.5); /* Semi-transparent background for the plane */
+            border-radius: 1rem;
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-x: auto; /* Re-added to allow scrolling for now if needed on large circuits */
+            padding-bottom: 1rem;
+        }
+
+        .qubit-line {
+            position: relative;
+            display: flex;
+            align-items: center;
+            height: 4rem;
+        }
+        
+        .qubit-line::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 3rem; /* Starts after the qubit circle */
+            right: 0;
+            height: 2px;
+            background-color: #5A5A7A;
+            z-index: 1;
+        }
+
+        /* Qubit visualizers */
+        .qubit-container {
+            position: relative;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 3rem;
+            width: 3rem;
+        }
+
+        .qubit {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            border: 2px solid #E0E0F0;
+            transition: background-color 0.5s ease;
+            position: relative;
+            /* Enforce perfect circle */
+            aspect-ratio: 1 / 1;
+        }
+        
+        /* State 0 (Blue) */
+        .qubit-state-0 {
+            background-color: #4A90E2;
+        }
+
+        /* State 1 (Red) */
+        .qubit-state-1 {
+            background-color: #D0021B;
+        }
+
+        /* Superposition (Swirling blend of Blue and Red) */
+        .qubit-state-superposition {
+            background: conic-gradient(from 0deg, #4A90E2 0%, #D0021B 50%, #4A90E2 100%);
+            animation: swirl 2s linear infinite;
+        }
+
+        @keyframes swirl {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Drop area for gates */
+        .gate-drop-area {
+            width: 8rem; /* Adjusted width to prevent text overflow */
+            height: 3rem;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            /* Add a visual marker on the line */
+            border-radius: 50%;
+        }
+
+        .gate-drop-area::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px dashed rgba(224, 224, 240, 0.2);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: -1;
+        }
+
+        .gate-drop-area:hover::before {
+            opacity: 1;
+        }
+        
+        /* New "Woohoo!" style based on user's code */
+        .attention-grabber {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(2rem, 15vw, 10rem);
+            line-height: 1;
+            text-align: center;
+            position: fixed; /* Changed to fixed for pop-up effect */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(0deg);
+            user-select: none;
+            cursor: pointer;
+            animation: pop-on-load 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+            letter-spacing: -0.1em;
+            -webkit-text-stroke: 4px white;
+            text-stroke: 4px white;
+            z-index: 100;
+            display: none; /* Initially hidden */
+        }
+
+        .attention-grabber span {
+            display: inline-block;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-origin: center bottom;
+        }
+
+        .attention-grabber span:hover {
+            transform: scale(1.3) rotate(5deg);
+        }
+
+        .char-W { color: #f9d83a; }
+        .char-o1 { color: #51c7df; }
+        .char-o2 { color: #ec5291; }
+        .char-h { color: #8e54e9; }
+        .char-o3 { color: #f9d83a; }
+        .char-o4 { color: #51c7df; }
+        .char-exclamation { color: #ec5291; }
+
+        @keyframes pop-on-load {
+            0% { transform: translate(-50%, -50%) scale(0) rotate(30deg); opacity: 0; }
+            80% { transform: translate(-50%, -50%) scale(1.1) rotate(-5deg); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100vh) rotateZ(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotateZ(720deg); opacity: 0; }
+        }
+
+        .confetti {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0;
+            animation: confetti-fall 3s linear forwards;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .confetti.circle { border-radius: 50%; }
+        .confetti.square { transform: rotate(45deg); }
+        
+        .bubble {
+            position: absolute;
+            background-color: transparent;
+            border: 2px solid;
+            border-radius: 50%;
+            animation: bubble-float 4s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        .bubble.small { width: 10px; height: 10px; }
+        .bubble.medium { width: 20px; height: 20px; }
+        .bubble.large { width: 30px; height: 30px; }
+
+        @keyframes bubble-float {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-100px) scale(1.5); opacity: 0; }
+        }
+
+        /* New Tooltip styles - Managed by JS */
+        #tooltip {
+            position: fixed;
+            background-color: #1A1A3A;
+            color: #E0E0F0;
+            padding: 0.5rem;
+            border-radius: 6px;
+            text-align: center;
+            width: max-content;
+            max-width: 200px;
+            font-size: 0.875rem;
+            border: 1px solid rgba(224, 224, 240, 0.1);
+            pointer-events: none; /* Make it so it doesn't block mouse events */
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            z-index: 1000; /* Ensure it's on top of everything */
+        }
+
+        .qubit-container:hover .qubit {
+            transform: scale(1.1);
+        }
+
+        /* Added for the new UI */
+        .qbot-message {
+            background-color: #1A1A3A;
+            border-left: 4px solid #4A90E2;
+        }
+
+        /* Background animation styles */
+        #background-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            background-color: rgba(74, 144, 226, 0.3);
+            border-radius: 50%;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-20vh) translateX(20vw); }
+            50% { transform: translateY(0) translateX(40vw); }
+            75% { transform: translateY(20vh) translateX(20vw); }
+        }
+
+        /* Button Pulse Animation - Updated */
+        .btn-pulse {
+            position: relative;
+            z-index: 1;
+        }
+        .btn-pulse::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            background-color: #4f46e5;
+            border-radius: 0.5rem;
+            transform: translate(-50%, -50%);
+            animation: pulse 2.5s infinite cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            z-index: -1;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0;
+            }
+        }
+        
+        /* Rocket Animation */
+        #rocket {
+            position: absolute;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%) translateY(0) rotate(0deg);
+            opacity: 0;
+            transition: transform 2.5s ease-out, opacity 1s ease-out;
+            z-index: 20;
+        }
+
+        #rocket.fly {
+            transform: translateX(60vw) translateY(-60vh) rotate(45deg) scale(1.2);
+            opacity: 1;
+        }
+
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col items-center">
+    <!-- Dynamic Background -->
+    <div id="background-animation"></div>
+
+    <!-- Woohoo Message -->
+    <div class="attention-grabber" id="attention-grabber">
+        <span class="char-W">W</span>
+        <span class="char-o1">o</span>
+        <span class="char-o2">o</span>
+        <span class="char-h">h</span>
+        <span class="char-o3">o</span>
+        <span class="char-o4">o</span>
+        <span class="char-exclamation">!</span>
+    </div>
+    
+    <!-- New Tooltip element -->
+    <div id="tooltip"></div>
+
+    <!-- Navbar -->
+    <nav class="w-full flex justify-between items-center p-4 md:p-6 bg-transparent z-50">
+        <a href="#" class="flex items-center space-x-2">
+            <img src="https://i.ibb.co/YT1NVnhC/539c325e-7d56-49f7-a9c3-b977675e5b9e-removalai-preview.png" alt="QUTE Logo" class="h-10">
+            <span class="text-xl font-bold">QUTE</span>
+        </a>
+        <div class="hidden md:flex space-x-8 text-sm font-medium">
+            <a href="https://poe.com/QUTE-Bot" class="text-gray-300 hover:text-white transition-colors duration-200">Learn</a>
+            <a href="https://malak-q.github.io/qute-website/" class="text-gray-300 hover:text-white transition-colors duration-200">Simulate</a>
+            <a href="#" class="text-gray-300 hover:text-white transition-colors duration-200">Puzzles</a>
+            <a href="https://www.instagram.com/playqute" class="text-gray-300 hover:text-white transition-colors duration-200">Community</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-7xl flex-grow flex flex-col items-center p-4">
+        <!-- Hero Section -->
+        <section class="text-center py-12 md:py-16 px-4 hero-gradient rounded-lg shadow-2xl w-full mb-12">
+            <h1 class="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight text-white mb-4">
+                Quantum Understanding Through Experimentation
+            </h1>
+            <p class="text-base md:text-xl text-gray-300 max-w-2xl mx-auto mb-8">
+                Build, simulate, and understand quantum circuits with our interactive game.
+            </p>
+            <button id="start-game-button" class="px-6 py-3 md:px-8 md:py-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors text-lg font-semibold btn-pulse">Start Mission</button>
+        </section>
+
+        <!-- Rocket Element -->
+        <img id="rocket" src="https://images.emojiterra.com/google/noto-emoji/animated-emoji/1f680.gif" alt="Rocket" class="w-20 h-20">
+
+        <!-- Home Page (Level Selection) -->
+        <section id="home-page" class="w-full">
+            <h2 class="text-2xl md:text-3xl font-bold text-white mb-6">Missions</h2>
+            <div id="level-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Level cards will be generated here by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Game Page -->
+        <section id="game-page" class="w-full hidden">
+            <!-- Q-Bot Guide -->
+            <div class="w-full card rounded-lg p-4 md:p-6 shadow-xl mb-6 qbot-message">
+                <!-- Q-Bot avatar updated -->
+                <div class="flex items-start space-x-4">
+                    <img src="https://assets-v2.lottiefiles.com/a/decf4a3e-f47e-11ef-9a9d-2386c1245eb1/LY89s3JCNl.gif" alt="Q-Bot" class="h-12 w-12 md:h-16 md:w-16">
+                    <div>
+                        <h3 class="font-bold text-lg text-blue-300">Q-Bot</h3>
+                        <p id="qbot-message" class="text-gray-200 text-sm md:text-base"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quantum Circuit Simulator Section -->
+            <div class="w-full card rounded-lg p-4 md:p-6 shadow-xl mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6 space-y-4 sm:space-y-0">
+                    <h2 id="level-title" class="text-xl md:text-2xl font-bold text-white"></h2>
+                    <div class="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-4 text-sm">
+                        <button id="reset-button" class="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-gray-600 hover:bg-gray-700 transition-colors">Reset</button>
+                        <button id="run-button" class="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors">Run Circuit</button>
+                        <button id="next-level-button" class="hidden px-3 py-2 md:px-4 md:py-2 rounded-lg bg-green-600 hover:bg-green-700 transition-colors">Next Level</button>
+                        <button id="back-button" class="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-gray-600 hover:bg-gray-700 transition-colors">Back to Missions</button>
+                    </div>
+                </div>
+                
+                <p id="level-objective" class="text-gray-400 text-sm md:text-base mb-4"></p>
+
+                <!-- Circuit Grid Container -->
+                <div id="circuit-grid">
+                    <!-- Qubit lines will be generated here by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Quantum Gate Palette -->
+            <div class="w-full card rounded-lg p-4 md:p-6 shadow-xl">
+                <h2 class="text-xl md:text-2xl font-bold text-white mb-4">Quantum Gate Palette</h2>
+                <div id="gate-palette" class="flex flex-wrap gap-4 md:gap-6 justify-center">
+                    <!-- Gates will be dynamically added here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const backgroundAnimation = document.getElementById('background-animation');
+            const startGameButton = document.getElementById('start-game-button');
+            const homePage = document.getElementById('home-page');
+            const gamePage = document.getElementById('game-page');
+            const levelList = document.getElementById('level-list');
+            const rocket = document.getElementById('rocket');
+            
+            // New "Woohoo!" element reference
+            const attentionGrabber = document.getElementById('attention-grabber');
+            const tooltip = document.getElementById('tooltip');
+
+            const circuitGrid = document.getElementById('circuit-grid');
+            const gatePalette = document.getElementById('gate-palette');
+            const runButton = document.getElementById('run-button');
+            const resetButton = document.getElementById('reset-button');
+            const nextLevelButton = document.getElementById('next-level-button');
+            const backButton = document.getElementById('back-button');
+            const levelTitle = document.getElementById('level-title');
+            const levelObjective = document.getElementById('level-objective');
+            const qbotMessage = document.getElementById('qbot-message');
+
+            let draggedGate = null;
+            let circuit = [];
+            let initialTimesteps = 5; // Start with 5 timesteps for better initial fit
+
+            let qubitStates = [];
+            let currentLevelIndex = 0;
+            let completedLevels = new Set(); // Using a Set to track completed levels
+
+            const gameData = [
+                // Level 0: The Basics
+                {
+                    id: 0,
+                    title: "The First Flip",
+                    objective: "Your first qubit, a tiny cosmic particle, is stuck in the stable |0⟩ state (blue). Place an X gate to give it a nudge and flip it to the |1⟩ state (red).",
+                    gates: ["X"],
+                    qubits: 1,
+                    initialState: [0],
+                    targetState: [1],
+                    qbot: "Greetings, Quantum Explorer! Your first mission: fix a wayward qubit. It's stuck! Find the Pauli-X gate in your toolbox, then drag and drop it onto the circuit line to flip the qubit's state.",
+                    runMessage: "Boom! You've done it. The Pauli-X gate is like a light switch for a qubit, flipping its state. Now, let's move on to something truly mind-bending.",
+                },
+                // Level 1: Superposition
+                {
+                    id: 1,
+                    title: "The Cosmic Coin",
+                    objective: "This next particle is unstable. Use a Hadamard (H) gate to put it into a fascinating state of superposition.",
+                    gates: ["H"],
+                    qubits: 1,
+                    initialState: [0],
+                    targetState: [-1],
+                    qbot: "Welcome to the world of **superposition**! This is where a qubit exists in both $|0\rangle$ and $|1\rangle$ at the same time. Use the Hadamard gate—the 'cosmic coin flipper'—to achieve this.",
+                    runMessage: "Wow, it's shimmering! Your qubit is now in superposition, a beautiful dance between its two states. It's neither blue nor red, but both! What do you think happens when we try to look at it?",
+                },
+                // Level 2: Measurement
+                {
+                    id: 2,
+                    title: "The Great Collapse",
+                    objective: "Your superposition qubit is still flickering. Use a Measure (M) gate to observe it and collapse it back to a definite state.",
+                    gates: ["H", "M"],
+                    qubits: 1,
+                    initialState: [0],
+                    targetState: [0, 1],
+                    qbot: "In the quantum world, observation is everything. A **Measure** gate forces a superposition qubit to pick a side—either $|0\rangle$ or $|1\rangle$. Try running the circuit multiple times and watch what happens to the state.",
+                    runMessage: "Excellent! You've measured the qubit. Its state has collapsed from a swirling cloud into a solid color. The outcome is a bit like rolling a cosmic dice; it's random, but each roll gives you a definite answer.",
+                }
+            ];
+
+            // Local storage for progress
+            const saveProgress = () => {
+                const progress = {
+                    completed: Array.from(completedLevels),
+                    lastLevel: currentLevelIndex
+                };
+                localStorage.setItem('quantumGameProgress', JSON.stringify(progress));
+            };
+
+            const loadProgress = () => {
+                const saved = localStorage.getItem('quantumGameProgress');
+                if (saved) {
+                    const progress = JSON.parse(saved);
+                    completedLevels = new Set(progress.completed);
+                    currentLevelIndex = progress.lastLevel;
+                }
+            };
+            
+            function renderParticles() {
+                const numParticles = 20;
+                for (let i = 0; i < numParticles; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    const size = Math.random() * 5 + 2; // Particle size
+                    particle.style.width = `${size}px`;
+                    particle.style.height = `${size}px`;
+                    particle.style.left = `${Math.random() * 100}vw`;
+                    particle.style.top = `${Math.random() * 100}vh`;
+                    particle.style.animationDelay = `-${Math.random() * 20}s`;
+                    particle.style.opacity = Math.random() * 0.4 + 0.1;
+                    backgroundAnimation.appendChild(particle);
+                }
+            }
+            renderParticles();
+
+            function showHomePage() {
+                homePage.classList.remove('hidden');
+                gamePage.classList.add('hidden');
+                document.querySelector('.hero-gradient').classList.remove('hidden');
+                startGameButton.classList.remove('hidden');
+                renderLevelList();
+            }
+
+            function showGamePage() {
+                homePage.classList.add('hidden');
+                gamePage.classList.remove('hidden');
+                document.querySelector('.hero-gradient').classList.add('hidden');
+                startGameButton.classList.add('hidden');
+                renderLevel();
+            }
+
+            function renderLevelList() {
+                levelList.innerHTML = '';
+                gameData.forEach((level, index) => {
+                    const isUnlocked = completedLevels.has(level.id - 1) || level.id === 0;
+                    const isCompleted = completedLevels.has(level.id);
+                    const card = document.createElement('div');
+                    card.className = `card rounded-lg p-6 shadow-xl cursor-pointer transition-transform transform hover:scale-105 ${isUnlocked ? 'bg-gray-800' : 'bg-gray-900 opacity-50 cursor-not-allowed'}`;
+                    
+                    let statusText = isCompleted ? 'Completed' : 'Locked';
+                    if (isUnlocked && !isCompleted) {
+                        statusText = 'Unlocked';
+                    }
+
+                    card.innerHTML = `
+                        <h3 class="text-xl font-bold">${level.title}</h3>
+                        <p class="text-sm text-gray-400 mt-1">${level.objective}</p>
+                        <p class="text-right mt-4 font-semibold text-sm">Status: <span class="${isCompleted ? 'text-green-400' : 'text-yellow-400'}">${statusText}</span></p>
+                    `;
+
+                    if (isUnlocked) {
+                        card.addEventListener('click', () => {
+                            currentLevelIndex = index;
+                            showGamePage();
+                        });
+                    }
+
+                    levelList.appendChild(card);
+                });
+            }
+
+            function initializeCircuit(numQubitsToRender) {
+                // Initialize circuit data with a base number of timesteps
+                circuit = Array.from({ length: numQubitsToRender }, () => Array(initialTimesteps).fill(null));
+                circuitGrid.innerHTML = '';
+                
+                for (let i = 0; i < numQubitsToRender; i++) {
+                    const qubitLine = document.createElement('div');
+                    qubitLine.className = 'qubit-line flex items-center space-x-2';
+                    qubitLine.dataset.qubitIndex = i;
+
+                    const qubitContainer = document.createElement('div');
+                    qubitContainer.className = 'qubit-container flex-shrink-0 flex items-center justify-center';
+                    qubitContainer.dataset.tooltip = 'The basic unit of quantum information. Think of it like a quantum bit.';
+
+                    const qubit = document.createElement('div');
+                    qubit.className = 'qubit qubit-state-0';
+                    qubit.dataset.qubitIndex = i;
+                    
+                    const label = document.createElement('span');
+                    label.textContent = `q${i}`;
+                    label.className = 'text-sm font-semibold mr-2';
+                    
+                    qubitContainer.appendChild(label);
+                    qubitContainer.appendChild(qubit);
+
+                    qubitLine.appendChild(qubitContainer);
+
+                    for (let j = 0; j < initialTimesteps; j++) {
+                        const dropArea = document.createElement('div');
+                        dropArea.className = 'gate-drop-area flex items-center justify-center';
+                        dropArea.dataset.qubitIndex = i;
+                        dropArea.dataset.timestepIndex = j;
+
+                        // Drag-and-drop event listeners
+                        dropArea.addEventListener('dragover', e => e.preventDefault());
+                        dropArea.addEventListener('drop', handleDrop);
+
+                        qubitLine.appendChild(dropArea);
+                    }
+                    circuitGrid.appendChild(qubitLine);
+                }
+                updateQubitVisuals();
+            }
+
+            function addTimestepToCircuit() {
+                // Add a new column to the data structure
+                circuit.forEach(qubitLine => qubitLine.push(null));
+
+                // Add a new column to the DOM
+                const qubitLines = document.querySelectorAll('.qubit-line');
+                qubitLines.forEach((line, qubitIndex) => {
+                    const dropArea = document.createElement('div');
+                    dropArea.className = 'gate-drop-area flex items-center justify-center';
+                    dropArea.dataset.qubitIndex = qubitIndex;
+                    dropArea.dataset.timestepIndex = circuit[0].length - 1;
+
+                    dropArea.addEventListener('dragover', e => e.preventDefault());
+                    dropArea.addEventListener('drop', handleDrop);
+
+                    line.appendChild(dropArea);
+                });
+            }
+
+            function renderGatePalette(gates) {
+                gatePalette.innerHTML = '';
+                gates.forEach(gateType => {
+                    const gateElement = document.createElement('div');
+                    gateElement.id = `gate-${gateType}`;
+                    gateElement.className = 'gate px-4 py-2 rounded-lg transition-colors shadow-lg';
+                    gateElement.draggable = true;
+                    gateElement.dataset.gateType = gateType;
+
+                    let tooltipText = "";
+                    
+                    switch(gateType) {
+                        case 'H':
+                            gateElement.textContent = "H (Hadamard)";
+                            gateElement.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                            tooltipText = "Puts a qubit into a state of superposition.";
+                            break;
+                        case 'X':
+                            gateElement.textContent = "X (Pauli-X)";
+                            gateElement.classList.add('bg-red-600', 'hover:bg-red-700');
+                            tooltipText = "Flips the qubit's state.";
+                            break;
+                        case 'M':
+                            gateElement.textContent = "M (Measure)";
+                            gateElement.classList.add('bg-purple-600', 'hover:bg-purple-700');
+                            tooltipText = "Measures the qubit, collapsing its state.";
+                            break;
+                    }
+                    
+                    gateElement.dataset.tooltip = tooltipText;
+
+                    gateElement.addEventListener('dragstart', (e) => {
+                        draggedGate = e.target;
+                        e.dataTransfer.setData('text/plain', e.target.dataset.gateType);
+                    });
+                    gatePalette.appendChild(gateElement);
+                });
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                if (!draggedGate) return;
+
+                const dropArea = e.target.closest('.gate-drop-area');
+                if (!dropArea) return;
+
+                const qubitIndex = parseInt(dropArea.dataset.qubitIndex);
+                const timestepIndex = parseInt(dropArea.dataset.timestepIndex);
+                
+                // Add a new timestep if we're at the last column
+                if (timestepIndex === circuit[0].length - 1) {
+                    addTimestepToCircuit();
+                }
+
+                // Remove any old gate from this drop area
+                const existingGate = dropArea.querySelector('.gate');
+                if (existingGate) {
+                    existingGate.remove();
+                }
+
+                // Create a new gate element with the correct styling and text
+                const gateClone = document.createElement('div');
+                gateClone.className = 'gate px-4 py-2 rounded-lg transition-colors shadow-lg';
+                gateClone.textContent = draggedGate.textContent;
+                gateClone.dataset.gateType = draggedGate.dataset.gateType;
+                gateClone.dataset.tooltip = draggedGate.dataset.tooltip;
+
+                // Apply correct colors based on gate type
+                const gateType = draggedGate.dataset.gateType;
+                switch(gateType) {
+                    case 'H': gateClone.classList.add('bg-blue-600'); break;
+                    case 'X': gateClone.classList.add('bg-red-600'); break;
+                    case 'M': gateClone.classList.add('bg-purple-600'); break;
+                }
+                
+                // Add the new gate to the circuit data structure
+                circuit[qubitIndex][timestepIndex] = gateType;
+                
+                // Append the clone to the drop area
+                dropArea.appendChild(gateClone);
+            }
+
+            function updateQubitVisuals() {
+                document.querySelectorAll('.qubit').forEach(qubitElement => {
+                    const index = parseInt(qubitElement.dataset.qubitIndex);
+                    const state = qubitStates[index];
+                    qubitElement.classList.remove('qubit-state-0', 'qubit-state-1', 'qubit-state-superposition');
+                    if (state === 0) {
+                        qubitElement.classList.add('qubit-state-0');
+                    } else if (state === 1) {
+                        qubitElement.classList.add('qubit-state-1');
+                    } else if (state === -1) {
+                        qubitElement.classList.add('qubit-state-superposition');
+                    }
+                });
+            }
+
+            function runCircuit() {
+                // Check if the circuit has any gates
+                const hasGates = circuit.some(qubitLine => qubitLine.some(gate => gate !== null));
+                if (!hasGates) {
+                    qbotMessage.textContent = "Whoops! It looks like you haven't placed any gates yet. Drag one from the palette to get started.";
+                    return;
+                }
+
+                // Reset states for a new run
+                qubitStates.fill(0);
+                updateQubitVisuals();
+
+                let simulationComplete = false;
+                let timestep = 0;
+
+                function stepSimulation() {
+                    if (timestep < circuit[0].length) {
+                        for (let i = 0; i < gameData[currentLevelIndex].qubits; i++) {
+                            const gateType = circuit[i][timestep];
+                            if (gateType) {
+                                applyGate(gateType, i);
+                            }
+                        }
+                        timestep++;
+                        setTimeout(stepSimulation, 500); // Wait for a short moment
+                    } else {
+                        simulationComplete = true;
+                        checkLevelCompletion();
+                    }
+                }
+                stepSimulation();
+            }
+
+            function applyGate(gateType, qubitIndex) {
+                switch (gateType) {
+                    case 'H':
+                        qubitStates[qubitIndex] = -1;
+                        break;
+                    case 'X':
+                        if (qubitStates[qubitIndex] === 0) {
+                            qubitStates[qubitIndex] = 1;
+                        } else if (qubitStates[qubitIndex] === 1) {
+                            qubitStates[qubitIndex] = 0;
+                        } else if (qubitStates[qubitIndex] === -1) {
+                            qubitStates[qubitIndex] = -1;
+                        }
+                        break;
+                    case 'M':
+                        if (qubitStates[qubitIndex] === -1) {
+                            qubitStates[qubitIndex] = Math.random() < 0.5 ? 0 : 1;
+                        }
+                        break;
+                }
+                updateQubitVisuals();
+            }
+            
+            // New functions for confetti and bubbles
+            function createConfetti() {
+                const confetti = document.createElement('div');
+                const size = Math.random() * 10 + 5;
+                const shapes = ['circle', 'square'];
+                const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
+                confetti.className = `confetti ${randomShape}`;
+
+                confetti.style.width = `${size}px`;
+                confetti.style.height = `${size}px`;
+                confetti.style.left = `${Math.random() * window.innerWidth}px`;
+                confetti.style.top = `${Math.random() * window.innerHeight}px`;
+                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 70%)`;
+                confetti.style.animation = `confetti-fall ${Math.random() * 3 + 2}s linear forwards`;
+                document.body.appendChild(confetti);
+
+                setTimeout(() => {
+                    confetti.remove();
+                }, (parseFloat(confetti.style.animationDuration) * 1000) + 100);
+            }
+
+            function createBubblyShapes() {
+                const bubble = document.createElement('div');
+                const size = Math.random() * 20 + 10;
+                const colors = ['#f9d83a', '#51c7df', '#ec5291', '#8e54e9'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+                bubble.className = 'bubble';
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                bubble.style.left = `${Math.random() * 100}vw`;
+                bubble.style.top = `${Math.random() * 100}vh`;
+                bubble.style.borderColor = randomColor;
+                document.body.appendChild(bubble);
+
+                setTimeout(() => {
+                    bubble.remove();
+                }, 4000);
+            }
+
+            function showWoohoo() {
+                attentionGrabber.style.display = 'block';
+                
+                for (let i = 0; i < 75; i++) {
+                    setTimeout(() => createConfetti(), i * 5);
+                }
+
+                for (let i = 0; i < 15; i++) {
+                    setTimeout(createBubblyShapes, i * 50);
+                }
+
+                setTimeout(() => {
+                    attentionGrabber.style.display = 'none';
+                }, 3000);
+            }
+
+            function checkLevelCompletion() {
+                const currentLevelData = gameData[currentLevelIndex];
+                let isComplete = false;
+
+                if (currentLevelIndex === 0) {
+                    isComplete = qubitStates[0] === 1;
+                } else if (currentLevelIndex === 1) {
+                    isComplete = qubitStates[0] === -1;
+                } else if (currentLevelIndex === 2) {
+                    isComplete = currentLevelData.targetState.includes(qubitStates[0]);
+                }
+
+                if (isComplete) {
+                    completedLevels.add(currentLevelData.id);
+                    saveProgress();
+                    qbotMessage.textContent = currentLevelData.runMessage + " You've done it! Click 'Next Level' to continue.";
+                    nextLevelButton.classList.remove('hidden');
+                    runButton.classList.add('hidden');
+                    showWoohoo();
+                } else {
+                    qbotMessage.textContent = "Hmm, that's not quite right. Review the objective and try a different combination!";
+                }
+            }
+
+            function resetCircuit() {
+                const currentLevelData = gameData[currentLevelIndex];
+                qubitStates.fill(0);
+                initializeCircuit(currentLevelData.qubits);
+                qbotMessage.textContent = currentLevelData.qbot;
+                nextLevelButton.classList.add('hidden');
+                runButton.classList.remove('hidden');
+            }
+
+            function nextLevel() {
+                currentLevelIndex++;
+                if (currentLevelIndex < gameData.length) {
+                    renderLevel();
+                } else {
+                    // Game over or show a final message
+                    levelTitle.textContent = "Mission Complete!";
+                    levelObjective.textContent = "You've proven your skills as a Quantum Explorer. The universe is now a little more stable, thanks to you.";
+                    qbotMessage.textContent = "You have completed all the puzzles. What a journey! The cosmos is now humming with perfect harmony. Return to the main screen to explore what you've learned.";
+                    nextLevelButton.classList.add('hidden');
+                    runButton.classList.add('hidden');
+                    resetButton.classList.add('hidden');
+                }
+            }
+
+            function renderLevel() {
+                const level = gameData[currentLevelIndex];
+                levelTitle.textContent = level.title;
+                levelObjective.textContent = level.objective;
+                qubitStates = Array(level.qubits).fill(0);
+                qbotMessage.textContent = level.qbot;
+                
+                // Update the circuit and gate palette
+                initializeCircuit(level.qubits);
+                renderGatePalette(level.gates);
+                nextLevelButton.classList.add('hidden');
+                runButton.classList.remove('hidden');
+            }
+            
+            // Tooltip functions
+            function showTooltip(text, x, y) {
+                tooltip.textContent = text;
+                tooltip.style.left = `${x + 10}px`; // Add offset from cursor
+                tooltip.style.top = `${y + 10}px`;
+                tooltip.style.opacity = '1';
+            }
+
+            function hideTooltip() {
+                tooltip.style.opacity = '0';
+                tooltip.textContent = '';
+            }
+
+            document.body.addEventListener('mousemove', (e) => {
+                const target = e.target.closest('[data-tooltip]');
+                if (target) {
+                    showTooltip(target.dataset.tooltip, e.clientX, e.clientY);
+                } else {
+                    hideTooltip();
+                }
+            });
+
+            // Event listeners
+            startGameButton.addEventListener('click', () => {
+                rocket.classList.add('fly');
+                setTimeout(() => {
+                    showHomePage();
+                    rocket.classList.remove('fly');
+                }, 2500); // Match this timeout with the CSS transition duration
+            });
+            backButton.addEventListener('click', showHomePage);
+            runButton.addEventListener('click', runCircuit);
+            resetButton.addEventListener('click', resetCircuit);
+            nextLevelButton.addEventListener('click', nextLevel);
+
+            // Initial setup
+            loadProgress();
+            showHomePage();
+        });
+    </script>
+</body>
+</html>
